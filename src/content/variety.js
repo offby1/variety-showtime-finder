@@ -16,18 +16,39 @@ function detectMediaType() {
   return null;
 }
 
-// Variety review titles/og:title typically look like:
+// Variety's <title> tag consistently looks like:
 //   ‘Movie Title’ Review: Some description of the film...
-// Pull out the quoted portion if present, otherwise fall back to stripping
-// a trailing "Review: ..." suffix.
+// og:title is NOT used here even though it's usually present too: it's a
+// separate social-headline field that doesn't follow this pattern
+// reliably - sometimes it embeds the title mid-sentence instead, e.g. for
+// one review og:title was "Guy Ritchie’s ‘Young Sherlock’ Delivers a
+// Perfect Origin Story: TV Review" while <title> was the expected
+// "‘Young Sherlock’ Review: ..." (confirmed live).
+//
+// " Review" is a reliable anchor, so split on that first and *then* strip
+// a wrapping quote pair from what's left, rather than searching for "the
+// next quote-like character" to find the title's closing quote. The
+// latter breaks on any title containing an apostrophe, since Variety
+// reuses the same quote character for both a possessive apostrophe and
+// the title's own closing quote (confirmed live - "‘Joe’s College Road
+// Trip’ Review: ..." parsed as just "Joe", since the apostrophe in
+// "Joe’s" matched as if it were the closing quote).
 function extractTitle() {
-  const og = document.querySelector('meta[property="og:title"]');
-  const raw = og?.content || document.title || "";
+  const raw = document.title || document.querySelector('meta[property="og:title"]')?.content || "";
 
-  const quoted = raw.match(/[‘'"]([^’'"]+)[’'"]/);
-  if (quoted) return quoted[1].trim();
+  const withoutSuffix = raw.split(/\s+Review\b/i)[0].trim();
+  return stripWrappingQuotes(withoutSuffix);
+}
 
-  return raw.split(/\s+Review\b/i)[0].trim();
+function stripWrappingQuotes(str) {
+  const OPENERS = "‘'\"“";
+  const CLOSERS = "’'\"”";
+  const first = str[0];
+  const last = str[str.length - 1];
+  if (str.length >= 2 && OPENERS.includes(first) && CLOSERS.includes(last)) {
+    return str.slice(1, -1).trim();
+  }
+  return str;
 }
 
 // True when `err` is Chrome's "Extension context invalidated" error: this
