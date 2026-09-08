@@ -148,7 +148,82 @@ function renderTheatrical(theatrical) {
   linksP.appendChild(showtimesLink);
   section.appendChild(linksP);
 
+  if (theatrical.isReleaseInFuture === false) {
+    const resultsDiv = document.createElement("div");
+    resultsDiv.className = "live-showtimes";
+
+    const liveButton = document.createElement("button");
+    liveButton.type = "button";
+    liveButton.textContent = "Show live showtimes here";
+    liveButton.addEventListener("click", async () => {
+      liveButton.disabled = true;
+      liveButton.textContent = "Loading… (opens a background tab briefly)";
+      resultsDiv.innerHTML = "";
+      try {
+        const result = await chrome.runtime.sendMessage({
+          type: "GET_LIVE_SHOWTIMES",
+          slug: theatrical.slug,
+          zip: settings?.zip,
+        });
+        renderLiveShowtimes(resultsDiv, result);
+      } catch (err) {
+        resultsDiv.textContent = `Error: ${err.message}`;
+      } finally {
+        liveButton.textContent = "Refresh live showtimes";
+        liveButton.disabled = false;
+      }
+    });
+
+    section.append(liveButton, resultsDiv);
+  }
+
   return section;
+}
+
+function renderLiveShowtimes(container, result) {
+  container.innerHTML = "";
+  if (!result || result.error) {
+    container.textContent = "Couldn't load live showtimes. Try the Fandango link above instead.";
+    return;
+  }
+  if (!result.theaters?.length) {
+    container.textContent = result.timedOut
+      ? "Timed out waiting for Fandango. Try the link above instead."
+      : "No showtimes found today near your zip code.";
+    return;
+  }
+
+  for (const theater of result.theaters) {
+    const theaterDiv = document.createElement("div");
+    theaterDiv.className = "live-theater";
+
+    const name = document.createElement("div");
+    name.className = "live-theater-name";
+    name.textContent = theater.distance ? `${theater.name} (${theater.distance})` : theater.name;
+    theaterDiv.appendChild(name);
+
+    for (const fmt of theater.formats) {
+      const fmtDiv = document.createElement("div");
+      fmtDiv.className = "live-theater-format";
+
+      const label = document.createElement("span");
+      label.className = "live-format-label";
+      label.textContent = `${fmt.format}: `;
+      fmtDiv.appendChild(label);
+
+      for (const t of fmt.times) {
+        const a = document.createElement("a");
+        a.href = t.url || theater.url || "#";
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.className = "live-time";
+        a.textContent = t.time;
+        fmtDiv.appendChild(a);
+      }
+      theaterDiv.appendChild(fmtDiv);
+    }
+    container.appendChild(theaterDiv);
+  }
 }
 
 async function renderDetail(result, providers, theatrical) {

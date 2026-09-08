@@ -18,6 +18,11 @@
       "matches": ["https://variety.com/*", "https://www.variety.com/*"],
       "js": ["src/content/variety.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.fandango.com/*"],
+      "js": ["src/content/fandango-showtimes.js"],
+      "run_at": "document_idle"
     }
   ],
   "action": {

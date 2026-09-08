@@ -38,6 +38,25 @@ export function movieTimesUrl(slug, zip) {
   return url.toString();
 }
 
+// Same URL, but flagged for src/content/fandango-showtimes.js to scrape.
+// Kept separate from movieTimesUrl() so a plain "open this in a real tab"
+// link never accidentally triggers scraping.
+const SCRAPE_MARKER = "_ext_scrape";
+
+export function movieTimesScrapeUrl(slug, zip) {
+  const url = new URL(movieTimesUrl(slug, zip));
+  url.searchParams.set(SCRAPE_MARKER, "1");
+  return url.toString();
+}
+
+export function isScrapeRequestUrl(urlString) {
+  try {
+    return new URL(urlString).searchParams.has(SCRAPE_MARKER);
+  } catch {
+    return false;
+  }
+}
+
 async function fetchText(url) {
   const res = await fetch(url, { credentials: "omit" });
   if (!res.ok) throw new Error(`Fandango request failed (${res.status})`);

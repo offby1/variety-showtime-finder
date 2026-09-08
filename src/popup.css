@@ -133,6 +133,48 @@ h1 {
   margin: 0.15rem 0;
 }
 
+.theatrical button {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  margin-top: 0.2rem;
+}
+
+.live-showtimes {
+  margin-top: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+}
+
+.live-theater {
+  padding: 0.3rem 0;
+  border-top: 1px solid #e5e5e5;
+}
+
+.live-theater-name {
+  font-weight: 600;
+}
+
+.live-theater-format {
+  margin-top: 0.15rem;
+}
+
+.live-format-label {
+  color: #666;
+}
+
+.live-time {
+  display: inline-block;
+  margin: 0.1rem 0.25rem 0.1rem 0;
+  padding: 0.1rem 0.35rem;
+  background: #eef2ff;
+  color: #2a5adf;
+  border-radius: 3px;
+  text-decoration: none;
+  font-size: 0.75rem;
+}
+
 #detail-content button {
   margin-top: 0.6rem;
   padding: 0.4rem 0.8rem;

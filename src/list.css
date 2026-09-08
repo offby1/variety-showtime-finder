@@ -97,3 +97,40 @@ td img {
   padding: 0.25rem 0.5rem;
   font-size: 0.8rem;
 }
+
+.live-showtimes-btn {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem;
+  cursor: pointer;
+}
+
+.live-showtimes {
+  margin-top: 0.3rem;
+  max-width: 320px;
+  font-size: 0.78rem;
+}
+
+.live-theater {
+  padding: 0.25rem 0;
+  border-top: 1px solid #eee;
+}
+
+.live-theater-name {
+  font-weight: 600;
+}
+
+.live-format-label {
+  color: #666;
+}
+
+.live-time {
+  display: inline-block;
+  margin: 0.1rem 0.25rem 0.1rem 0;
+  padding: 0.1rem 0.35rem;
+  background: #eef2ff;
+  color: #2a5adf;
+  border-radius: 3px;
+  text-decoration: none;
+  font-size: 0.72rem;
+}
