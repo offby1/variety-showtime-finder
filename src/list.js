@@ -84,13 +84,36 @@ function renderRow(item) {
   }
 
   const streamingTd = document.createElement("td");
-  streamingTd.textContent =
-    item.available && item.streaming?.flatrate?.length
-      ? item.streaming.flatrate.map((p) => p.provider_name).join(", ")
-      : "Not yet available";
+  streamingTd.textContent = item.streaming?.flatrate?.length
+    ? item.streaming.flatrate.map((p) => p.provider_name).join(", ")
+    : "Not yet streaming";
 
   const theatricalTd = document.createElement("td");
-  theatricalTd.textContent = item.mediaType === "movie" ? "Not tracked yet" : "—";
+  if (item.mediaType !== "movie") {
+    theatricalTd.textContent = "—";
+  } else if (item.theatrical?.found) {
+    const t = item.theatrical;
+    const statusText =
+      t.isReleaseInFuture === true
+        ? t.releaseDate
+          ? `Opens ${t.releaseDate}`
+          : "Not yet released"
+        : t.isReleaseInFuture === false
+          ? t.releaseDate
+            ? `Released ${t.releaseDate}`
+            : "Released"
+          : "Unknown";
+    theatricalTd.appendChild(document.createTextNode(statusText + " "));
+    const a = document.createElement("a");
+    a.href = t.showtimesUrl;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.className = "source-link";
+    a.textContent = "Showtimes on Fandango";
+    theatricalTd.appendChild(a);
+  } else {
+    theatricalTd.textContent = "No Fandango match / not checked yet";
+  }
 
   const savedTd = document.createElement("td");
   savedTd.textContent = new Date(item.savedAt).toLocaleDateString();
@@ -112,7 +135,7 @@ function renderRow(item) {
     recheckButton.disabled = true;
     recheckButton.textContent = "...";
     try {
-      await recheckItem(item, settings.tmdbApiKey, settings.region || "US");
+      await recheckItem(item, settings.tmdbApiKey, settings.region || "US", settings.zip);
       await refreshItems();
     } finally {
       recheckButton.disabled = false;

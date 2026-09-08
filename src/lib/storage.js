@@ -12,12 +12,22 @@
 //   savedAt,        // ISO timestamp
 //   lastCheckedAt,  // ISO timestamp or null
 //   streaming,      // last known TMDB watch-providers result, or null
-//   available,      // whether it was streaming (flatrate) as of lastCheckedAt
+//   theatrical,     // last known Fandango theatrical-status result
+//                    // (movies only), or null
+//   available,      // whether it was streaming OR in theaters as of
+//                    // lastCheckedAt
 //   newlyAvailable, // true if a recheck flipped available false -> true,
 //                   // and it hasn't been viewed in the full list yet
 // }
 
 import { getWatchProviders } from "./tmdb.js";
+import { getTheatricalStatus } from "./fandango.js";
+
+function isAvailable(streaming, theatrical) {
+  const streamingAvailable = Boolean(streaming?.flatrate?.length);
+  const inTheaters = Boolean(theatrical?.found && theatrical.isReleaseInFuture === false);
+  return streamingAvailable || inTheaters;
+}
 
 const STORAGE_KEY = "savedItems";
 
@@ -39,7 +49,16 @@ export async function isSaved(mediaType, tmdbId) {
   return items.some((i) => i.key === itemKey(mediaType, tmdbId));
 }
 
-export async function saveItem({ mediaType, tmdbId, title, year, posterUrl, sourceUrl, streaming }) {
+export async function saveItem({
+  mediaType,
+  tmdbId,
+  title,
+  year,
+  posterUrl,
+  sourceUrl,
+  streaming,
+  theatrical,
+}) {
   const items = await getSavedItems();
   const key = itemKey(mediaType, tmdbId);
   if (items.some((i) => i.key === key)) return;
@@ -54,9 +73,10 @@ export async function saveItem({ mediaType, tmdbId, title, year, posterUrl, sour
     posterUrl,
     sourceUrl: sourceUrl || null,
     savedAt: now,
-    lastCheckedAt: streaming ? now : null,
+    lastCheckedAt: streaming || theatrical ? now : null,
     streaming: streaming || null,
-    available: streaming ? streaming.flatrate.length > 0 : false,
+    theatrical: theatrical || null,
+    available: isAvailable(streaming, theatrical),
     newlyAvailable: false,
   });
   await setSavedItems(items);
@@ -67,30 +87,37 @@ export async function removeItem(key) {
   await setSavedItems(items.filter((i) => i.key !== key));
 }
 
-async function updateItemStreaming(key, streaming) {
+async function updateItemStatus(key, { streaming, theatrical }) {
   const items = await getSavedItems();
   const idx = items.findIndex((i) => i.key === key);
   if (idx === -1) return;
 
   const item = items[idx];
   const wasAvailable = item.available;
-  const isAvailable = streaming.flatrate.length > 0;
+  const nowAvailable = isAvailable(streaming, theatrical);
   items[idx] = {
     ...item,
     streaming,
-    available: isAvailable,
+    theatrical: theatrical !== undefined ? theatrical : item.theatrical,
+    available: nowAvailable,
     lastCheckedAt: new Date().toISOString(),
-    newlyAvailable: item.newlyAvailable || (!wasAvailable && isAvailable),
+    newlyAvailable: item.newlyAvailable || (!wasAvailable && nowAvailable),
   };
   await setSavedItems(items);
 }
 
-// Re-fetches streaming status for a saved item and updates storage.
-// Returns the fresh streaming result.
-export async function recheckItem(item, apiKey, region) {
+// Re-fetches streaming (and, for movies, theatrical) status for a saved
+// item and updates storage. Returns the fresh { streaming, theatrical }.
+export async function recheckItem(item, apiKey, region, zip) {
   const streaming = await getWatchProviders(apiKey, item.mediaType, item.tmdbId, region);
-  await updateItemStreaming(item.key, streaming);
-  return streaming;
+
+  let theatrical;
+  if (item.mediaType === "movie") {
+    theatrical = await getTheatricalStatus(item.title, item.year, zip);
+  }
+
+  await updateItemStatus(item.key, { streaming, theatrical });
+  return { streaming, theatrical };
 }
 
 // Clears the newlyAvailable flag on every saved item (called when the full

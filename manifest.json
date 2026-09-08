@@ -6,7 +6,8 @@
   "permissions": ["storage", "tabs"],
   "host_permissions": [
     "https://api.themoviedb.org/*",
-    "https://image.tmdb.org/*"
+    "https://image.tmdb.org/*",
+    "https://www.fandango.com/*"
   ],
   "background": {
     "service_worker": "src/background.js",

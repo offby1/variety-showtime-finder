@@ -1,4 +1,5 @@
 import { searchTitles, getWatchProviders, providerLogoUrl } from "./lib/tmdb.js";
+import { getTheatricalStatus } from "./lib/fandango.js";
 import { saveItem, isSaved, getSavedItems, removeItem, recheckItem } from "./lib/storage.js";
 
 const searchForm = document.getElementById("search-form");
@@ -89,19 +90,68 @@ async function showDetail(result) {
   detailSection.hidden = false;
   detailContent.textContent = "Loading...";
   try {
-    const providers = await getWatchProviders(
+    const providersPromise = getWatchProviders(
       settings.tmdbApiKey,
       result.mediaType,
       result.id,
       settings.region || "US"
     );
-    await renderDetail(result, providers);
+    // Fandango only covers movies; theatrical is null for TV.
+    const theatricalPromise =
+      result.mediaType === "movie"
+        ? getTheatricalStatus(result.title, result.year, settings.zip).catch(() => ({
+            found: false,
+            error: true,
+          }))
+        : Promise.resolve(null);
+
+    const [providers, theatrical] = await Promise.all([providersPromise, theatricalPromise]);
+    await renderDetail(result, providers, theatrical);
   } catch (err) {
     detailContent.textContent = `Error: ${err.message}`;
   }
 }
 
-async function renderDetail(result, providers) {
+function renderTheatrical(theatrical) {
+  const section = document.createElement("div");
+  section.className = "theatrical";
+
+  if (!theatrical || !theatrical.found) {
+    const p = document.createElement("p");
+    p.textContent = theatrical?.error
+      ? "Couldn't reach Fandango to check theatrical status."
+      : "No Fandango listing found for this title.";
+    section.appendChild(p);
+    return section;
+  }
+
+  const status = document.createElement("p");
+  if (theatrical.isReleaseInFuture === true) {
+    status.textContent = theatrical.releaseDate
+      ? `Opens in theaters ${theatrical.releaseDate}`
+      : "Not yet in theaters";
+  } else if (theatrical.isReleaseInFuture === false) {
+    status.textContent = theatrical.releaseDate
+      ? `Released in theaters ${theatrical.releaseDate}`
+      : "Currently/previously in theaters";
+  } else {
+    status.textContent = "Theatrical status unknown";
+  }
+  section.appendChild(status);
+
+  const linksP = document.createElement("p");
+  const showtimesLink = document.createElement("a");
+  showtimesLink.href = theatrical.showtimesUrl;
+  showtimesLink.target = "_blank";
+  showtimesLink.rel = "noopener";
+  showtimesLink.textContent = "Find showtimes on Fandango →";
+  linksP.appendChild(showtimesLink);
+  section.appendChild(linksP);
+
+  return section;
+}
+
+async function renderDetail(result, providers, theatrical) {
   detailContent.innerHTML = "";
 
   const heading = document.createElement("h2");
@@ -141,6 +191,10 @@ async function renderDetail(result, providers) {
     detailContent.appendChild(p);
   }
 
+  if (result.mediaType === "movie") {
+    detailContent.appendChild(renderTheatrical(theatrical));
+  }
+
   const saveButton = document.createElement("button");
   saveButton.type = "button";
   const alreadySaved = await isSaved(result.mediaType, result.id);
@@ -155,6 +209,7 @@ async function renderDetail(result, providers) {
       posterUrl: result.posterUrl,
       sourceUrl: currentReviewUrl,
       streaming: providers,
+      theatrical,
     });
     saveButton.textContent = "Saved";
     saveButton.disabled = true;
@@ -179,6 +234,19 @@ async function renderSavedList() {
   }
 }
 
+function savedItemStatusText(item) {
+  const streamingProviders = item.streaming?.flatrate?.map((p) => p.provider_name).join(", ");
+  const inTheaters = item.mediaType === "movie" && item.theatrical?.found && item.theatrical.isReleaseInFuture === false;
+
+  if (streamingProviders && inTheaters) return `Streaming (${streamingProviders}) & in theaters`;
+  if (streamingProviders) return `Streaming: ${streamingProviders}`;
+  if (inTheaters) return "In theaters";
+  if (item.mediaType === "movie" && item.theatrical?.isReleaseInFuture) {
+    return item.theatrical.releaseDate ? `Opens ${item.theatrical.releaseDate}` : "Not yet released";
+  }
+  return "Not yet available";
+}
+
 function renderSavedItem(item) {
   const li = document.createElement("li");
   li.className = "saved-item";
@@ -190,9 +258,7 @@ function renderSavedItem(item) {
   title.textContent = item.year ? `${item.title} (${item.year})` : item.title;
   const status = document.createElement("div");
   status.className = "saved-status";
-  status.textContent = item.available
-    ? `Streaming${item.streaming?.flatrate?.length ? ": " + item.streaming.flatrate.map((p) => p.provider_name).join(", ") : ""}`
-    : "Not yet available";
+  status.textContent = savedItemStatusText(item);
   info.append(title, status);
 
   const actions = document.createElement("div");
@@ -206,7 +272,7 @@ function renderSavedItem(item) {
     recheckButton.disabled = true;
     recheckButton.textContent = "...";
     try {
-      await recheckItem(item, settings.tmdbApiKey, settings.region || "US");
+      await recheckItem(item, settings.tmdbApiKey, settings.region || "US", settings.zip);
     } finally {
       await renderSavedList();
     }
