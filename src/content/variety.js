@@ -30,6 +30,17 @@ function extractTitle() {
   return raw.split(/\s+Review\b/i)[0].trim();
 }
 
+// True when `err` is Chrome's "Extension context invalidated" error: this
+// content script instance was injected before the extension was last
+// reloaded/reinstalled, and the tab it's running in was never refreshed
+// afterward, so its connection to the (now-replaced) extension is gone.
+// Expected and harmless during development (reload the extension, forget
+// to also reload open tabs) - not a real bug, so it's worth distinguishing
+// from one.
+function isContextInvalidated(err) {
+  return String(err?.message || err).includes("Extension context invalidated");
+}
+
 const BANNER_ID = "__showtime_finder_banner__";
 
 function dismissalKey() {
@@ -80,10 +91,16 @@ function showBanner(title, tabId) {
     // can look up the full detected record - title, media type, review
     // URL - and behave exactly as it would from the toolbar icon,
     // including auto-running the search).
-    const url = new URL(chrome.runtime.getURL("src/popup.html"));
-    url.searchParams.set("title", title);
-    if (tabId != null) url.searchParams.set("sourceTabId", tabId);
-    window.open(url.toString(), "_blank");
+    try {
+      const url = new URL(chrome.runtime.getURL("src/popup.html"));
+      url.searchParams.set("title", title);
+      if (tabId != null) url.searchParams.set("sourceTabId", tabId);
+      window.open(url.toString(), "_blank");
+    } catch (err) {
+      if (!isContextInvalidated(err)) throw err;
+      text.textContent = "Extension was updated — refresh this page and click again.";
+      closeButton.remove();
+    }
   });
 }
 
@@ -92,14 +109,20 @@ async function detectAndReport() {
   const title = extractTitle();
   if (!title) return;
 
-  const tabId = await chrome.runtime.sendMessage({
-    type: "VARIETY_REVIEW_DETECTED",
-    payload: {
-      title,
-      mediaType: detectMediaType(),
-      url: location.href,
-    },
-  });
+  let tabId;
+  try {
+    tabId = await chrome.runtime.sendMessage({
+      type: "VARIETY_REVIEW_DETECTED",
+      payload: {
+        title,
+        mediaType: detectMediaType(),
+        url: location.href,
+      },
+    });
+  } catch (err) {
+    if (isContextInvalidated(err)) return; // nothing useful to do; see above
+    throw err;
+  }
 
   showBanner(title, tabId);
 }
