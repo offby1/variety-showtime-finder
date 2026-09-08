@@ -1,6 +1,7 @@
 import { searchTitles, getWatchProviders, providerLogoUrl } from "./lib/tmdb.js";
 import { getTheatricalStatus } from "./lib/fandango.js";
 import { saveItem, isSaved, getSavedItems, removeItem, recheckItem } from "./lib/storage.js";
+import { GIT_COMMIT, STAMPED_AT } from "./version.js";
 
 const searchForm = document.getElementById("search-form");
 const searchInput = document.getElementById("search-input");
@@ -14,6 +15,9 @@ const reviewBanner = document.getElementById("review-banner");
 const reviewTitle = document.getElementById("review-title");
 const savedList = document.getElementById("saved-list");
 const savedMessage = document.getElementById("saved-message");
+const versionStamp = document.getElementById("version-stamp");
+versionStamp.textContent = GIT_COMMIT;
+versionStamp.title = `Built from commit ${GIT_COMMIT} (${STAMPED_AT})`;
 
 let savedMessageTimeout = null;
 function showSavedMessage(text) {

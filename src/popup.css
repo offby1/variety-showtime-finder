@@ -252,9 +252,20 @@ footer {
   padding-top: 0.5rem;
   border-top: 1px solid #eee;
   font-size: 0.8rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
 }
 
 footer a {
   color: #2a5adf;
   text-decoration: none;
+}
+
+.version-stamp {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.65rem;
+  color: #999;
+  user-select: text;
+  cursor: text;
 }
