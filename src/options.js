@@ -5,7 +5,7 @@ const zipInput = document.getElementById("zip");
 const status = document.getElementById("save-status");
 
 async function loadSettings() {
-  const { settings } = await chrome.storage.local.get("settings");
+  const { settings } = await chrome.storage.sync.get("settings");
   apiKeyInput.value = settings?.tmdbApiKey || "";
   regionInput.value = settings?.region || "US";
   zipInput.value = settings?.zip || "";
@@ -18,7 +18,7 @@ form.addEventListener("submit", async (e) => {
     region: (regionInput.value.trim() || "US").toUpperCase(),
     zip: zipInput.value.trim(),
   };
-  await chrome.storage.local.set({ settings });
+  await chrome.storage.sync.set({ settings });
   status.textContent = "Saved.";
   setTimeout(() => {
     status.textContent = "";

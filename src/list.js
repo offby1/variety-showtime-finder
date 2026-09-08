@@ -22,7 +22,7 @@ let items = [];
 let recentlyNewKeys = new Set();
 
 async function loadSettings() {
-  const { settings: s } = await chrome.storage.local.get("settings");
+  const { settings: s } = await chrome.storage.sync.get("settings");
   settings = s || null;
 }
 

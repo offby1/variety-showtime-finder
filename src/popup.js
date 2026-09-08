@@ -33,7 +33,7 @@ let settings = null;
 let currentReviewUrl = null;
 
 async function loadSettings() {
-  const { settings: s } = await chrome.storage.local.get("settings");
+  const { settings: s } = await chrome.storage.sync.get("settings");
   settings = s || null;
 }
 

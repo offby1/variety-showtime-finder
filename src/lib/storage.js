@@ -1,4 +1,20 @@
-// Saved-item storage. Items live in chrome.storage.local under "savedItems".
+// Saved-item storage. Lives in chrome.storage.sync (not .local), one entry
+// per saved item under its own key (`saved:${item.key}`), rather than one
+// big array under a single key - chrome.storage.sync caps a single item's
+// value at 8KB, which a growing array of saved items would eventually
+// exceed and start silently failing to write past. Keeping each item under
+// its own key means each one only needs to fit under that cap
+// individually (comfortably true for one movie/show's worth of data), and
+// the real ceiling becomes sync's ~512-total-items / ~100KB-total-quota
+// limits instead - both generous for a personal watch list.
+//
+// chrome.storage.sync (rather than .local) is used so this data survives
+// uninstalling/reinstalling the extension and follows the user's
+// Chrome-signed-in account. If Chrome sync isn't set up, this API still
+// works as local-only storage - it just won't literally sync anywhere.
+//
+// Settings (src/options.js) live under a single "settings" key in the same
+// storage area - small enough that the per-item-key concern doesn't apply.
 //
 // Shape of a saved item:
 // {
@@ -23,30 +39,33 @@
 import { getWatchProviders } from "./tmdb.js";
 import { getTheatricalStatus } from "./fandango.js";
 
+const ITEM_PREFIX = "saved:";
+
 function isAvailable(streaming, theatrical) {
   const streamingAvailable = Boolean(streaming?.flatrate?.length);
   const inTheaters = Boolean(theatrical?.found && theatrical.isReleaseInFuture === false);
   return streamingAvailable || inTheaters;
 }
 
-const STORAGE_KEY = "savedItems";
-
 export function itemKey(mediaType, tmdbId) {
   return `${mediaType}:${tmdbId}`;
 }
 
 export async function getSavedItems() {
-  const { [STORAGE_KEY]: items } = await chrome.storage.local.get(STORAGE_KEY);
-  return items || [];
+  const all = await chrome.storage.sync.get(null);
+  return Object.keys(all)
+    .filter((k) => k.startsWith(ITEM_PREFIX))
+    .map((k) => all[k]);
 }
 
-async function setSavedItems(items) {
-  await chrome.storage.local.set({ [STORAGE_KEY]: items });
+async function putItem(item) {
+  await chrome.storage.sync.set({ [ITEM_PREFIX + item.key]: item });
 }
 
 export async function isSaved(mediaType, tmdbId) {
-  const items = await getSavedItems();
-  return items.some((i) => i.key === itemKey(mediaType, tmdbId));
+  const storageKey = ITEM_PREFIX + itemKey(mediaType, tmdbId);
+  const stored = await chrome.storage.sync.get(storageKey);
+  return Boolean(stored[storageKey]);
 }
 
 export async function saveItem({
@@ -59,13 +78,11 @@ export async function saveItem({
   streaming,
   theatrical,
 }) {
-  const items = await getSavedItems();
-  const key = itemKey(mediaType, tmdbId);
-  if (items.some((i) => i.key === key)) return;
+  if (await isSaved(mediaType, tmdbId)) return;
 
   const now = new Date().toISOString();
-  items.push({
-    key,
+  await putItem({
+    key: itemKey(mediaType, tmdbId),
     mediaType,
     tmdbId,
     title,
@@ -79,31 +96,28 @@ export async function saveItem({
     available: isAvailable(streaming, theatrical),
     newlyAvailable: false,
   });
-  await setSavedItems(items);
 }
 
 export async function removeItem(key) {
-  const items = await getSavedItems();
-  await setSavedItems(items.filter((i) => i.key !== key));
+  await chrome.storage.sync.remove(ITEM_PREFIX + key);
 }
 
 async function updateItemStatus(key, { streaming, theatrical }) {
-  const items = await getSavedItems();
-  const idx = items.findIndex((i) => i.key === key);
-  if (idx === -1) return;
+  const storageKey = ITEM_PREFIX + key;
+  const stored = await chrome.storage.sync.get(storageKey);
+  const item = stored[storageKey];
+  if (!item) return;
 
-  const item = items[idx];
   const wasAvailable = item.available;
   const nowAvailable = isAvailable(streaming, theatrical);
-  items[idx] = {
+  await putItem({
     ...item,
     streaming,
     theatrical: theatrical !== undefined ? theatrical : item.theatrical,
     available: nowAvailable,
     lastCheckedAt: new Date().toISOString(),
     newlyAvailable: item.newlyAvailable || (!wasAvailable && nowAvailable),
-  };
-  await setSavedItems(items);
+  });
 }
 
 // Re-fetches streaming (and, for movies, theatrical) status for a saved
@@ -139,5 +153,42 @@ export async function recheckItem(item, apiKey, region, zip) {
 // list view is opened, since that's where "what's new" gets seen).
 export async function clearNewlyAvailable() {
   const items = await getSavedItems();
-  await setSavedItems(items.map((i) => (i.newlyAvailable ? { ...i, newlyAvailable: false } : i)));
+  const updates = {};
+  for (const item of items) {
+    if (item.newlyAvailable) {
+      updates[ITEM_PREFIX + item.key] = { ...item, newlyAvailable: false };
+    }
+  }
+  if (Object.keys(updates).length) {
+    await chrome.storage.sync.set(updates);
+  }
+}
+
+// One-time migration from the pre-sync chrome.storage.local layout (a
+// single "savedItems" array key, plus "settings") to the current
+// chrome.storage.sync per-item layout, for anyone who already had data
+// saved locally before this switch. Safe to call on every startup - it
+// only ever fills in sync data that doesn't already exist, never
+// overwrites, and leaves the old local data in place rather than deleting
+// it (harmless if unused, and a safety net if something above is wrong).
+export async function migrateFromLocalStorage() {
+  const local = await chrome.storage.local.get(["savedItems", "settings"]);
+
+  if (Array.isArray(local.savedItems) && local.savedItems.length) {
+    const existing = await getSavedItems();
+    if (!existing.length) {
+      const updates = {};
+      for (const item of local.savedItems) {
+        updates[ITEM_PREFIX + item.key] = item;
+      }
+      await chrome.storage.sync.set(updates);
+    }
+  }
+
+  if (local.settings) {
+    const { settings: existingSettings } = await chrome.storage.sync.get("settings");
+    if (!existingSettings) {
+      await chrome.storage.sync.set({ settings: local.settings });
+    }
+  }
 }

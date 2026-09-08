@@ -6,6 +6,7 @@
 // rather than a plain fetch).
 
 import { movieTimesScrapeUrl } from "./lib/fandango.js";
+import { getSavedItems, migrateFromLocalStorage } from "./lib/storage.js";
 
 const detectedByTab = new Map();
 const BADGE_COLOR = "#2a7a2a";
@@ -64,11 +65,20 @@ function updateGlobalBadge(savedItems) {
   chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR });
 }
 
-chrome.storage.local.get("savedItems").then(({ savedItems }) => updateGlobalBadge(savedItems));
+// Saved items moved from chrome.storage.local (one "savedItems" array key)
+// to chrome.storage.sync (one key per item) - see src/lib/storage.js. This
+// migrates anyone who already had local data, once, before computing the
+// initial badge state.
+migrateFromLocalStorage().then(() =>
+  getSavedItems().then((items) => updateGlobalBadge(items))
+);
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.savedItems) {
-    updateGlobalBadge(changes.savedItems.newValue);
+  // Saved items are now spread across many "saved:*" keys rather than one
+  // key, so there's no single changed value to inspect - just recompute
+  // from scratch on any sync change. Cheap enough at this data size.
+  if (area === "sync") {
+    getSavedItems().then((items) => updateGlobalBadge(items));
   }
 });
 
