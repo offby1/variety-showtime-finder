@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Showtime Finder — Saved List</title>
+<link rel="stylesheet" href="list.css" />
+</head>
+<body>
+<header>
+  <h1>Saved Titles</h1>
+  <label>
+    Sort by
+    <select id="sort-select">
+      <option value="savedAt">Date saved (newest)</option>
+      <option value="title">Title</option>
+      <option value="available">Availability</option>
+    </select>
+  </label>
+</header>
+
+<p id="empty-state" hidden>
+  Nothing saved yet. Save titles from the popup while reading a Variety review, or after a manual search.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Title</th>
+      <th>Streaming</th>
+      <th>Theatrical</th>
+      <th>Saved</th>
+      <th>Last checked</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody id="list-body"></tbody>
+</table>
+
+<script type="module" src="list.js"></script>
+</body>
+</html>

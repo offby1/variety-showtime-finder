@@ -1,0 +1,99 @@
+body {
+  font-family: system-ui, sans-serif;
+  margin: 1.5rem;
+  color: #1a1a1a;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+h1 {
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+header label {
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+#empty-state {
+  color: #666;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+  font-size: 0.9rem;
+}
+
+th {
+  font-size: 0.8rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+td img {
+  width: 46px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 3px;
+  background: #ddd;
+}
+
+.title-cell {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.new-badge {
+  background: #2a7a2a;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+
+.type-cell {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.source-link {
+  display: block;
+  font-size: 0.75rem;
+  color: #2a5adf;
+  text-decoration: none;
+  margin-top: 0.15rem;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.actions-cell button {
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
