@@ -11,6 +11,19 @@ h1 {
   margin: 0 0 0.5rem;
 }
 
+#review-banner {
+  background: #eef7ee;
+  border: 1px solid #cde5cd;
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+#review-banner p {
+  margin: 0;
+}
+
 #search-form {
   display: flex;
   gap: 0.4rem;

@@ -3,10 +3,21 @@
   "name": "Variety Showtime Finder",
   "version": "0.1.0",
   "description": "Find streaming and theatrical availability for movies/TV shows reviewed on Variety.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": [
     "https://api.themoviedb.org/*",
     "https://image.tmdb.org/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://variety.com/*", "https://www.variety.com/*"],
+      "js": ["src/content/variety.js"],
+      "run_at": "document_idle"
+    }
   ],
   "action": {
     "default_popup": "src/popup.html",

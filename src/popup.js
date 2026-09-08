@@ -8,12 +8,20 @@ const searchSection = document.getElementById("search-section");
 const detailSection = document.getElementById("detail-section");
 const detailContent = document.getElementById("detail-content");
 const backButton = document.getElementById("back-button");
+const reviewBanner = document.getElementById("review-banner");
+const reviewTitle = document.getElementById("review-title");
 
 let settings = null;
 
 async function loadSettings() {
   const { settings: s } = await chrome.storage.local.get("settings");
   settings = s || null;
+}
+
+async function loadDetectedReview() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) return null;
+  return chrome.runtime.sendMessage({ type: "GET_DETECTED_REVIEW", tabId: tab.id });
 }
 
 function requireSettings() {
@@ -136,4 +144,18 @@ backButton.addEventListener("click", () => {
   searchSection.hidden = false;
 });
 
-loadSettings();
+async function init() {
+  await loadSettings();
+
+  const detected = await loadDetectedReview();
+  if (detected) {
+    reviewBanner.hidden = false;
+    reviewTitle.textContent = detected.title;
+    searchInput.value = detected.title;
+    if (requireSettings()) {
+      await runSearch(detected.title);
+    }
+  }
+}
+
+init();
