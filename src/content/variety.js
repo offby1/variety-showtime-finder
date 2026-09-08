@@ -36,7 +36,7 @@ function dismissalKey() {
   return `showtime-finder-dismissed:${location.href}`;
 }
 
-function showBanner(title) {
+function showBanner(title, tabId) {
   if (document.getElementById(BANNER_ID)) return;
   if (sessionStorage.getItem(dismissalKey())) return;
 
@@ -71,16 +71,28 @@ function showBanner(title) {
     // gesture the extension itself recognizes, not one relayed from a
     // page), so this opens the same popup.html as a regular tab instead -
     // same UI and logic, just not anchored to the toolbar icon.
-    window.open(chrome.runtime.getURL("src/popup.html"), "_blank");
+    //
+    // Popup.html normally figures out "what review is this?" by asking
+    // the background worker about the active tab - but opened as a plain
+    // tab, IT is the active tab, so that lookup would find nothing. Pass
+    // both a fallback (title, so the search box is prefilled even if
+    // something below fails) and the real source tab's id (so popup.js
+    // can look up the full detected record - title, media type, review
+    // URL - and behave exactly as it would from the toolbar icon,
+    // including auto-running the search).
+    const url = new URL(chrome.runtime.getURL("src/popup.html"));
+    url.searchParams.set("title", title);
+    if (tabId != null) url.searchParams.set("sourceTabId", tabId);
+    window.open(url.toString(), "_blank");
   });
 }
 
-function detectAndReport() {
+async function detectAndReport() {
   if (!isReviewPage()) return;
   const title = extractTitle();
   if (!title) return;
 
-  chrome.runtime.sendMessage({
+  const tabId = await chrome.runtime.sendMessage({
     type: "VARIETY_REVIEW_DETECTED",
     payload: {
       title,
@@ -89,7 +101,7 @@ function detectAndReport() {
     },
   });
 
-  showBanner(title);
+  showBanner(title, tabId);
 }
 
 detectAndReport();

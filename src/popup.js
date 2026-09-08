@@ -33,7 +33,31 @@ async function loadSettings() {
   settings = s || null;
 }
 
+// Normally, "what review is this?" is answered by asking the background
+// worker about the active tab - that works when popup.html is a real
+// toolbar popup, since the tab behind it is what's active. But the banner
+// on a Variety review page (src/content/variety.js) opens this same
+// popup.html as a plain tab instead (content scripts can't open the real
+// toolbar popup) - and then THIS tab is the active one, so that lookup
+// would find nothing. The banner passes the source tab's id (and, as a
+// fallback that doesn't depend on that lookup succeeding, the title
+// itself) via the URL for that case.
 async function loadDetectedReview() {
+  const params = new URLSearchParams(location.search);
+  const sourceTabId = params.get("sourceTabId");
+  const fallbackTitle = params.get("title");
+
+  if (sourceTabId) {
+    const detected = await chrome.runtime.sendMessage({
+      type: "GET_DETECTED_REVIEW",
+      tabId: Number(sourceTabId),
+    });
+    if (detected) return detected;
+  }
+  if (fallbackTitle) {
+    return { title: fallbackTitle, mediaType: null, url: null };
+  }
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab) return null;
   return chrome.runtime.sendMessage({ type: "GET_DETECTED_REVIEW", tabId: tab.id });

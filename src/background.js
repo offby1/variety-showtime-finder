@@ -75,6 +75,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "VARIETY_REVIEW_DETECTED" && sender.tab?.id != null) {
     lightUpTab(sender.tab.id, message.payload);
+    sendResponse(sender.tab.id);
     return;
   }
 
