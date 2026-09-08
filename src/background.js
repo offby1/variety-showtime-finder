@@ -3,19 +3,37 @@
 // popup's question of "what was detected on the active tab?".
 
 const detectedByTab = new Map();
+const BADGE_COLOR = "#2a7a2a";
 
 function lightUpTab(tabId, payload) {
   detectedByTab.set(tabId, payload);
-  chrome.action.setBadgeText({ tabId, text: "•" }); // •
-  chrome.action.setBadgeBackgroundColor({ tabId, color: "#2a7a2a" });
+  chrome.action.setBadgeText({ tabId, text: "•" });
   chrome.action.setTitle({ tabId, title: `Showtime Finder — detected: ${payload.title}` });
 }
 
 function clearTab(tabId) {
   detectedByTab.delete(tabId);
+  // Passing "" clears this tab's badge-text override, so the tab falls
+  // back to showing the global default (the newly-available count, if any).
   chrome.action.setBadgeText({ tabId, text: "" });
   chrome.action.setTitle({ tabId, title: "Showtime Finder" });
 }
+
+// The global (non-tab-specific) badge shows how many saved items have
+// newly become available since the full list view was last opened.
+function updateGlobalBadge(savedItems) {
+  const count = (savedItems || []).filter((i) => i.newlyAvailable).length;
+  chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
+  chrome.action.setBadgeBackgroundColor({ color: BADGE_COLOR });
+}
+
+chrome.storage.local.get("savedItems").then(({ savedItems }) => updateGlobalBadge(savedItems));
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.savedItems) {
+    updateGlobalBadge(changes.savedItems.newValue);
+  }
+});
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "VARIETY_REVIEW_DETECTED" && sender.tab?.id != null) {

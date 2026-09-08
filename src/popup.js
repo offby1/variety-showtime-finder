@@ -1,4 +1,5 @@
 import { searchTitles, getWatchProviders, providerLogoUrl } from "./lib/tmdb.js";
+import { saveItem, isSaved, getSavedItems, removeItem, recheckItem } from "./lib/storage.js";
 
 const searchForm = document.getElementById("search-form");
 const searchInput = document.getElementById("search-input");
@@ -10,8 +11,10 @@ const detailContent = document.getElementById("detail-content");
 const backButton = document.getElementById("back-button");
 const reviewBanner = document.getElementById("review-banner");
 const reviewTitle = document.getElementById("review-title");
+const savedList = document.getElementById("saved-list");
 
 let settings = null;
+let currentReviewUrl = null;
 
 async function loadSettings() {
   const { settings: s } = await chrome.storage.local.get("settings");
@@ -92,13 +95,13 @@ async function showDetail(result) {
       result.id,
       settings.region || "US"
     );
-    renderDetail(result, providers);
+    await renderDetail(result, providers);
   } catch (err) {
     detailContent.textContent = `Error: ${err.message}`;
   }
 }
 
-function renderDetail(result, providers) {
+async function renderDetail(result, providers) {
   detailContent.innerHTML = "";
 
   const heading = document.createElement("h2");
@@ -137,6 +140,89 @@ function renderDetail(result, providers) {
     p.appendChild(a);
     detailContent.appendChild(p);
   }
+
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  const alreadySaved = await isSaved(result.mediaType, result.id);
+  saveButton.textContent = alreadySaved ? "Saved" : "Save for later";
+  saveButton.disabled = alreadySaved;
+  saveButton.addEventListener("click", async () => {
+    await saveItem({
+      mediaType: result.mediaType,
+      tmdbId: result.id,
+      title: result.title,
+      year: result.year,
+      posterUrl: result.posterUrl,
+      sourceUrl: currentReviewUrl,
+      streaming: providers,
+    });
+    saveButton.textContent = "Saved";
+    saveButton.disabled = true;
+    await renderSavedList();
+  });
+  detailContent.appendChild(saveButton);
+}
+
+async function renderSavedList() {
+  const items = await getSavedItems();
+  savedList.innerHTML = "";
+  if (!items.length) {
+    const li = document.createElement("li");
+    li.className = "saved-empty";
+    li.textContent = "Nothing saved yet.";
+    savedList.appendChild(li);
+    return;
+  }
+
+  for (const item of [...items].sort((a, b) => b.savedAt.localeCompare(a.savedAt))) {
+    savedList.appendChild(renderSavedItem(item));
+  }
+}
+
+function renderSavedItem(item) {
+  const li = document.createElement("li");
+  li.className = "saved-item";
+
+  const info = document.createElement("div");
+  info.className = "saved-info";
+  const title = document.createElement("div");
+  title.className = "result-title";
+  title.textContent = item.year ? `${item.title} (${item.year})` : item.title;
+  const status = document.createElement("div");
+  status.className = "saved-status";
+  status.textContent = item.available
+    ? `Streaming${item.streaming?.flatrate?.length ? ": " + item.streaming.flatrate.map((p) => p.provider_name).join(", ") : ""}`
+    : "Not yet available";
+  info.append(title, status);
+
+  const actions = document.createElement("div");
+  actions.className = "saved-actions";
+
+  const recheckButton = document.createElement("button");
+  recheckButton.type = "button";
+  recheckButton.textContent = "Recheck";
+  recheckButton.addEventListener("click", async () => {
+    if (!requireSettings()) return;
+    recheckButton.disabled = true;
+    recheckButton.textContent = "...";
+    try {
+      await recheckItem(item, settings.tmdbApiKey, settings.region || "US");
+    } finally {
+      await renderSavedList();
+    }
+  });
+
+  const removeButton = document.createElement("button");
+  removeButton.type = "button";
+  removeButton.textContent = "Remove";
+  removeButton.addEventListener("click", async () => {
+    await removeItem(item.key);
+    await renderSavedList();
+  });
+
+  actions.append(recheckButton, removeButton);
+  li.append(info, actions);
+  return li;
 }
 
 backButton.addEventListener("click", () => {
@@ -146,9 +232,11 @@ backButton.addEventListener("click", () => {
 
 async function init() {
   await loadSettings();
+  await renderSavedList();
 
   const detected = await loadDetectedReview();
   if (detected) {
+    currentReviewUrl = detected.url;
     reviewBanner.hidden = false;
     reviewTitle.textContent = detected.title;
     searchInput.value = detected.title;
