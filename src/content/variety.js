@@ -6,8 +6,14 @@
 // even visible unless the user has pinned it (confirmed by real usage: the
 // badge was there but went unnoticed).
 
+// Variety doesn't consistently publish reviews under a /review(s)/ URL
+// path - confirmed live: a real review ('Pressure' Review: Andrew Scott
+// and Brendan Fraser Go Toe-to-Toe) lived at .../film/news/... instead of
+// .../film/reviews/.... The title format is far more reliable than the
+// URL, so check that first; the path check stays as a fallback in case a
+// review's title ever doesn't happen to include "Review:" for some reason.
 function isReviewPage() {
-  return /\/reviews?\//.test(location.pathname);
+  return /\bReview:/i.test(document.title) || /\/reviews?\//.test(location.pathname);
 }
 
 function detectMediaType() {
