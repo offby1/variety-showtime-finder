@@ -50,6 +50,7 @@ async function loadDetectedReview() {
   const params = new URLSearchParams(location.search);
   const sourceTabId = params.get("sourceTabId");
   const fallbackTitle = params.get("title");
+  const fallbackPublishedAt = params.get("publishedAt");
 
   if (sourceTabId) {
     const detected = await chrome.runtime.sendMessage({
@@ -59,7 +60,7 @@ async function loadDetectedReview() {
     if (detected) return detected;
   }
   if (fallbackTitle) {
-    return { title: fallbackTitle, mediaType: null, url: null };
+    return { title: fallbackTitle, mediaType: null, url: null, publishedAt: fallbackPublishedAt || null };
   }
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -80,14 +81,22 @@ searchForm.addEventListener("submit", async (e) => {
   if (!requireSettings()) return;
   const query = searchInput.value.trim();
   if (!query) return;
+  // No reference date for a manually-typed/edited query - even if it was
+  // prefilled from a detected review, changing it means the user's now
+  // searching for something else, and reusing that review's date could
+  // rank results for an unrelated title by the wrong movie's date.
   await runSearch(query);
 });
 
-async function runSearch(query) {
+// referenceDate (optional) ranks results with a release date close to it
+// higher - see rankResults() in lib/tmdb.js. Only passed for the
+// auto-search that runs immediately from a detected review (see init()
+// below), not from the search form, per the comment above.
+async function runSearch(query, referenceDate) {
   resultsList.innerHTML = "";
   searchStatus.textContent = "Searching...";
   try {
-    const results = await searchTitles(settings.tmdbApiKey, query);
+    const results = await searchTitles(settings.tmdbApiKey, query, referenceDate);
     searchStatus.textContent = results.length ? "" : "No results.";
     for (const result of results) {
       resultsList.appendChild(renderResultItem(result));
@@ -423,7 +432,7 @@ async function init() {
     reviewTitle.textContent = detected.title;
     searchInput.value = detected.title;
     if (requireSettings()) {
-      await runSearch(detected.title);
+      await runSearch(detected.title, detected.publishedAt);
     }
   }
 }

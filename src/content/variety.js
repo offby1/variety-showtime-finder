@@ -46,6 +46,14 @@ function extractTitle() {
   return stripWrappingQuotes(withoutSuffix);
 }
 
+// Used (as the "reference date" in src/lib/tmdb.js's search ranking) to
+// prefer a candidate whose release date is close to when Variety reviewed
+// it, over a same-titled but unrelated older/newer movie or show.
+function extractPublishedDate() {
+  const meta = document.querySelector('meta[property="article:published_time"]');
+  return meta?.content || null;
+}
+
 function stripWrappingQuotes(str) {
   const OPENERS = "‘'\"“";
   const CLOSERS = "’'\"”";
@@ -74,7 +82,7 @@ function dismissalKey() {
   return `showtime-finder-dismissed:${location.href}`;
 }
 
-function showBanner(title, tabId) {
+function showBanner(title, tabId, publishedAt) {
   if (document.getElementById(BANNER_ID)) return;
   if (sessionStorage.getItem(dismissalKey())) return;
 
@@ -122,6 +130,7 @@ function showBanner(title, tabId) {
       const url = new URL(chrome.runtime.getURL("src/popup.html"));
       url.searchParams.set("title", title);
       if (tabId != null) url.searchParams.set("sourceTabId", tabId);
+      if (publishedAt) url.searchParams.set("publishedAt", publishedAt);
       window.open(url.toString(), "_blank");
     } catch (err) {
       if (!isContextInvalidated(err)) throw err;
@@ -135,6 +144,7 @@ async function detectAndReport() {
   if (!isReviewPage()) return;
   const title = extractTitle();
   if (!title) return;
+  const publishedAt = extractPublishedDate();
 
   let tabId;
   try {
@@ -144,6 +154,7 @@ async function detectAndReport() {
         title,
         mediaType: detectMediaType(),
         url: location.href,
+        publishedAt,
       },
     });
   } catch (err) {
@@ -151,7 +162,7 @@ async function detectAndReport() {
     throw err;
   }
 
-  showBanner(title, tabId);
+  showBanner(title, tabId, publishedAt);
 }
 
 detectAndReport();
