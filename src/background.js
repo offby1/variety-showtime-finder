@@ -41,6 +41,10 @@ async function fetchLiveShowtimes(slug, zip) {
 function lightUpTab(tabId, payload) {
   detectedByTab.set(tabId, payload);
   chrome.action.setBadgeText({ tabId, text: "•" });
+  // Set explicitly here too (not just in updateGlobalBadge()) so this
+  // tab's badge is never left showing Chrome's built-in default color
+  // (a dark red) due to a startup race with the storage read below.
+  chrome.action.setBadgeBackgroundColor({ tabId, color: BADGE_COLOR });
   chrome.action.setTitle({ tabId, title: `Showtime Finder — detected: ${payload.title}` });
 }
 

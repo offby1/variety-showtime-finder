@@ -17,6 +17,7 @@
     {
       "matches": ["https://variety.com/*", "https://www.variety.com/*"],
       "js": ["src/content/variety.js"],
+      "css": ["src/content/variety-banner.css"],
       "run_at": "document_idle"
     },
     {
@@ -29,5 +30,11 @@
     "default_popup": "src/popup.html",
     "default_title": "Showtime Finder"
   },
-  "options_page": "src/options.html"
+  "options_page": "src/options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["src/popup.html"],
+      "matches": ["https://variety.com/*", "https://www.variety.com/*"]
+    }
+  ]
 }
