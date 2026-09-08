@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Showtime Finder Settings</title>
+<link rel="stylesheet" href="options.css" />
+</head>
+<body>
+<h1>Showtime Finder Settings</h1>
+<form id="settings-form">
+  <label>
+    TMDB API Key
+    <input type="text" id="tmdb-api-key" autocomplete="off" required />
+  </label>
+  <p class="hint">
+    Get a free key at
+    <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>
+    &mdash; use the "API Key (v3 auth)" value.
+  </p>
+
+  <label>
+    Region / country code
+    <input type="text" id="region" maxlength="2" placeholder="US" required />
+  </label>
+  <p class="hint">Determines which streaming providers and theatrical release info are shown.</p>
+
+  <label>
+    Zip code
+    <input type="text" id="zip" autocomplete="postal-code" />
+  </label>
+  <p class="hint">Used later for looking up nearby theatrical showtimes.</p>
+
+  <button type="submit">Save</button>
+  <span id="save-status" role="status"></span>
+</form>
+<script type="module" src="options.js"></script>
+</body>
+</html>

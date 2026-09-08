@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Variety Showtime Finder",
+  "version": "0.1.0",
+  "description": "Find streaming and theatrical availability for movies/TV shows reviewed on Variety.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://api.themoviedb.org/*",
+    "https://image.tmdb.org/*"
+  ],
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "Showtime Finder"
+  },
+  "options_page": "src/options.html"
+}

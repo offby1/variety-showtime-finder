@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Showtime Finder</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <h1>Showtime Finder</h1>
+  </header>
+
+  <section id="search-section">
+    <form id="search-form">
+      <input id="search-input" type="text" placeholder="Search title..." autocomplete="off" />
+      <button type="submit">Search</button>
+    </form>
+    <div id="search-status"></div>
+    <ul id="search-results"></ul>
+  </section>
+
+  <section id="detail-section" hidden>
+    <button id="back-button" type="button">&larr; Back to results</button>
+    <div id="detail-content"></div>
+  </section>
+
+  <footer>
+    <a id="open-options" href="options.html" target="_blank">Settings</a>
+  </footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
