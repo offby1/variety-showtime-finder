@@ -108,9 +108,16 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // A new navigation on a tab invalidates any previous detection until the
-// content script (re-)reports on whatever page loads next.
+// content script (re-)reports on whatever page loads next. Chrome can fire
+// more than one changeInfo.status "loading" event within a single page
+// load (observed live against variety.com, likely from ads/trackers
+// triggering extra load-state ticks); only the first one - the actual
+// navigation start - includes changeInfo.url. Clearing on every "loading"
+// event wipes out a detection that the content script already reported
+// moments earlier, since document_idle can fire before the tab's overall
+// loading state has settled. Gating on changeInfo.url avoids that.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === "loading") {
+  if (changeInfo.status === "loading" && changeInfo.url) {
     clearTab(tabId);
   }
 });

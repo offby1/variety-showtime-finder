@@ -107,17 +107,32 @@ async function updateItemStatus(key, { streaming, theatrical }) {
 }
 
 // Re-fetches streaming (and, for movies, theatrical) status for a saved
-// item and updates storage. Returns the fresh { streaming, theatrical }.
+// item and updates storage. The two lookups are independent (different
+// services), so a failure in one (e.g. an invalid/expired TMDB key)
+// shouldn't prevent the other from running or from being saved - each
+// failure is caught separately and reported back via streamingError /
+// theatricalError, falling back to the item's last-known value.
 export async function recheckItem(item, apiKey, region, zip) {
-  const streaming = await getWatchProviders(apiKey, item.mediaType, item.tmdbId, region);
+  let streaming = item.streaming;
+  let streamingError = null;
+  try {
+    streaming = await getWatchProviders(apiKey, item.mediaType, item.tmdbId, region);
+  } catch (err) {
+    streamingError = err;
+  }
 
-  let theatrical;
+  let theatrical = item.theatrical;
+  let theatricalError = null;
   if (item.mediaType === "movie") {
-    theatrical = await getTheatricalStatus(item.title, item.year, zip);
+    try {
+      theatrical = await getTheatricalStatus(item.title, item.year, zip);
+    } catch (err) {
+      theatricalError = err;
+    }
   }
 
   await updateItemStatus(item.key, { streaming, theatrical });
-  return { streaming, theatrical };
+  return { streaming, theatrical, streamingError, theatricalError };
 }
 
 // Clears the newlyAvailable flag on every saved item (called when the full

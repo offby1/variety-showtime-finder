@@ -1,7 +1,12 @@
-// Runs on fandango.com pages. Only does anything on a /movietimes page that
-// the background service worker opened specifically for scraping (flagged
-// via the `_ext_scrape` query param - see movieTimesScrapeUrl() in
+// Runs on fandango.com pages. Only does anything on a page the background
+// service worker opened specifically for scraping (flagged via the
+// `_ext_scrape` query param - see movieTimesScrapeUrl() in
 // src/lib/fandango.js) - a plain visit to Fandango by the user is a no-op.
+// Relying on that marker alone (rather than also matching a specific path)
+// is deliberate: Fandango had a separate /movietimes route that, mid-way
+// through development, started 301-redirecting to /movie-overview (same
+// content, same showtimes widget) - matching only the query param we
+// control means this doesn't care which path Fandango lands us on.
 //
 // Per-theater showtimes are loaded by Fandango's own client-side JS after
 // the page renders, so this polls for that to finish rather than reading
@@ -12,7 +17,6 @@
 // visible time-pill text.
 
 (function () {
-  if (!location.pathname.endsWith("/movietimes")) return;
   const params = new URLSearchParams(location.search);
   if (!params.has("_ext_scrape")) return;
 

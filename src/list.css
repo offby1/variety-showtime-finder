@@ -27,6 +27,15 @@ header label {
   color: #666;
 }
 
+.list-message {
+  font-size: 0.85rem;
+  color: #a33;
+  background: #fdecec;
+  border-radius: 4px;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.75rem;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

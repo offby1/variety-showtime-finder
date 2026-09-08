@@ -32,8 +32,15 @@ function movieUrl(slug) {
   return `https://www.fandango.com/${slug}/movie-overview`;
 }
 
+// Fandango used to have a separate /movietimes route for a movie's
+// showtimes; as of this writing it 301s straight to /movie-overview (with
+// the same ?zipcode= param) for every movie, which renders the identical
+// showtimes widget - confirmed live, mid-development, when /movietimes
+// suddenly started redirecting. Building the URL directly avoids depending
+// on that redirect (and, if Fandango ever restores /movietimes as a
+// separate page, this still works since it's the same content either way).
 export function movieTimesUrl(slug, zip) {
-  const url = new URL(`https://www.fandango.com/${slug}/movietimes`);
+  const url = new URL(movieUrl(slug));
   if (zip) url.searchParams.set("zipcode", zip);
   return url.toString();
 }
@@ -119,7 +126,15 @@ export async function getTheatricalStatus(title, year, zip) {
     return { found: false };
   }
 
-  const best = (year && candidates.find((c) => c.year === String(year))) || candidates[0];
+  // Prefer an exact title match before falling back to year: Fandango's
+  // own top/best-relevance result for a title often has no year suffix in
+  // its listing text (verified live), so matching on year first can skip
+  // right past the correct entry and land on an unrelated "Double
+  // Feature: X / Y (<year>)" bundle listing instead.
+  const normalizedQuery = title.trim().toLowerCase();
+  const exactTitleMatch = candidates.find((c) => c.title.trim().toLowerCase() === normalizedQuery);
+  const yearMatch = year && candidates.find((c) => c.year === String(year));
+  const best = exactTitleMatch || yearMatch || candidates[0];
 
   let details = null;
   try {

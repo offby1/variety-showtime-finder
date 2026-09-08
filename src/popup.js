@@ -13,6 +13,17 @@ const backButton = document.getElementById("back-button");
 const reviewBanner = document.getElementById("review-banner");
 const reviewTitle = document.getElementById("review-title");
 const savedList = document.getElementById("saved-list");
+const savedMessage = document.getElementById("saved-message");
+
+let savedMessageTimeout = null;
+function showSavedMessage(text) {
+  clearTimeout(savedMessageTimeout);
+  savedMessage.textContent = text;
+  savedMessage.hidden = false;
+  savedMessageTimeout = setTimeout(() => {
+    savedMessage.hidden = true;
+  }, 6000);
+}
 
 let settings = null;
 let currentReviewUrl = null;
@@ -346,10 +357,12 @@ function renderSavedItem(item) {
     if (!requireSettings()) return;
     recheckButton.disabled = true;
     recheckButton.textContent = "...";
-    try {
-      await recheckItem(item, settings.tmdbApiKey, settings.region || "US", settings.zip);
-    } finally {
-      await renderSavedList();
+    const result = await recheckItem(item, settings.tmdbApiKey, settings.region || "US", settings.zip);
+    await renderSavedList();
+    if (result.streamingError) {
+      showSavedMessage(`Streaming check failed for "${item.title}": ${result.streamingError.message}`);
+    } else if (result.theatricalError) {
+      showSavedMessage(`Theatrical check failed for "${item.title}": ${result.theatricalError.message}`);
     }
   });
 

@@ -3,6 +3,17 @@ import { getSavedItems, removeItem, recheckItem, clearNewlyAvailable } from "./l
 const tbody = document.getElementById("list-body");
 const emptyState = document.getElementById("empty-state");
 const sortSelect = document.getElementById("sort-select");
+const listMessage = document.getElementById("list-message");
+
+let listMessageTimeout = null;
+function showListMessage(text) {
+  clearTimeout(listMessageTimeout);
+  listMessage.textContent = text;
+  listMessage.hidden = false;
+  listMessageTimeout = setTimeout(() => {
+    listMessage.hidden = true;
+  }, 6000);
+}
 
 let settings = null;
 let items = [];
@@ -207,8 +218,13 @@ function renderRow(item) {
     recheckButton.disabled = true;
     recheckButton.textContent = "...";
     try {
-      await recheckItem(item, settings.tmdbApiKey, settings.region || "US", settings.zip);
+      const result = await recheckItem(item, settings.tmdbApiKey, settings.region || "US", settings.zip);
       await refreshItems();
+      if (result.streamingError) {
+        showListMessage(`Streaming check failed for "${item.title}": ${result.streamingError.message}`);
+      } else if (result.theatricalError) {
+        showListMessage(`Theatrical check failed for "${item.title}": ${result.theatricalError.message}`);
+      }
     } finally {
       recheckButton.disabled = false;
       recheckButton.textContent = "Recheck";
