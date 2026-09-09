@@ -50,7 +50,7 @@ function normalizeTitleForMatch(title) {
 // substring / no match) rather than a fuzzy edit-distance score - good
 // enough to separate "the movie" from "an unrelated movie that happens to
 // share a word," which is what actually matters for ranking.
-function titleMatchScore(candidateTitle, query) {
+export function titleMatchScore(candidateTitle, query) {
   const a = normalizeTitleForMatch(candidateTitle);
   const b = normalizeTitleForMatch(query);
   if (!a || !b) return 0;

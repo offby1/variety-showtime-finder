@@ -26,6 +26,8 @@
 // from a background service worker (which has no DOM) as well as from
 // extension pages.
 
+import { titleMatchScore } from "./tmdb.js";
+
 const SEARCH_URL = "https://www.fandango.com/search";
 
 function movieUrl(slug) {
@@ -134,7 +136,21 @@ export async function getTheatricalStatus(title, year, zip) {
   const normalizedQuery = title.trim().toLowerCase();
   const exactTitleMatch = candidates.find((c) => c.title.trim().toLowerCase() === normalizedQuery);
   const yearMatch = year && candidates.find((c) => c.year === String(year));
-  const best = exactTitleMatch || yearMatch || candidates[0];
+  // Fandango's own search is a loose substring match, not a "results about
+  // this title" search - confirmed live: searching "Musk" (a 2026
+  // documentary Fandango doesn't carry at all) returned "The Musketeer" (an
+  // unrelated 2001 film) as its own top result, purely because "musk" is a
+  // substring of "musketeer". Blindly trusting candidates[0] as a
+  // last-resort fallback picked that unrelated film and sent the user's
+  // live-showtimes scrape to its page. Require at least a prefix-level
+  // match (titleMatchScore >= 2, i.e. one title starts with the other) for
+  // the fallback - a bare substring hit isn't good enough to trust
+  // unsupervised.
+  const fallback = titleMatchScore(candidates[0].title, title) >= 2 ? candidates[0] : null;
+  const best = exactTitleMatch || yearMatch || fallback;
+  if (!best) {
+    return { found: false };
+  }
 
   let details = null;
   try {
