@@ -1,9 +1,19 @@
-import { getSavedItems, removeItem, recheckItem, clearNewlyAvailable } from "./lib/storage.js";
+import {
+  getSavedItems,
+  removeItem,
+  recheckItem,
+  clearNewlyAvailable,
+  exportAllData,
+  importAllData,
+} from "./lib/storage.js";
 
 const tbody = document.getElementById("list-body");
 const emptyState = document.getElementById("empty-state");
 const sortSelect = document.getElementById("sort-select");
 const listMessage = document.getElementById("list-message");
+const exportBtn = document.getElementById("export-btn");
+const importBtn = document.getElementById("import-btn");
+const importFile = document.getElementById("import-file");
 
 let listMessageTimeout = null;
 function showListMessage(text) {
@@ -245,6 +255,35 @@ function renderRow(item) {
 }
 
 sortSelect.addEventListener("change", render);
+
+exportBtn.addEventListener("click", async () => {
+  const data = await exportAllData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `variety-showtime-finder-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showListMessage(`Exported ${Object.keys(data).length} entries.`);
+});
+
+importBtn.addEventListener("click", () => importFile.click());
+
+importFile.addEventListener("change", async () => {
+  const file = importFile.files[0];
+  importFile.value = "";
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    await importAllData(data);
+    await loadSettings();
+    await refreshItems();
+    showListMessage(`Imported ${Object.keys(data).length} entries.`);
+  } catch (err) {
+    showListMessage(`Import failed: ${err.message}`);
+  }
+});
 
 async function init() {
   await loadSettings();

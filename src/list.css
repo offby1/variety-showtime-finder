@@ -16,11 +16,23 @@ h1 {
   margin: 0;
 }
 
-header label {
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.header-controls label {
   font-size: 0.85rem;
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+.header-controls button {
+  cursor: pointer;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
 }
 
 #empty-state {

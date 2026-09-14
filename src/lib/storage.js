@@ -164,6 +164,25 @@ export async function clearNewlyAvailable() {
   }
 }
 
+// Dumps the entire sync storage area (every saved item plus "settings") for
+// a manual backup/restore - see src/list.js's Export/Import buttons. Useful
+// as a safety net across anything that can orphan chrome.storage.sync data,
+// e.g. an unpacked extension's ID changing because it was reloaded from a
+// different path, or a new manifest "key" changing it deliberately.
+export async function exportAllData() {
+  return chrome.storage.sync.get(null);
+}
+
+// Merges a previously-exported dump back into sync storage. This only adds/
+// overwrites the keys present in `data` - it won't remove items that exist
+// now but weren't in the dump.
+export async function importAllData(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Not a valid backup file");
+  }
+  await chrome.storage.sync.set(data);
+}
+
 // One-time migration from the pre-sync chrome.storage.local layout (a
 // single "savedItems" array key, plus "settings") to the current
 // chrome.storage.sync per-item layout, for anyone who already had data

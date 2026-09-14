@@ -37,7 +37,10 @@ full design.
   shows how many saved titles have newly become available since you last
   opened the saved list; it clears once you open "view all".
 - "View all" in the popup opens the full saved-list page, with sort,
-  recheck, and remove controls.
+  recheck, and remove controls, plus **Export backup** / **Import backup**
+  buttons to save your saved list + settings to a JSON file and restore
+  them later (e.g. after `chrome.storage.sync` data gets orphaned by an
+  extension ID change).
 
 ## Updating after code changes
 

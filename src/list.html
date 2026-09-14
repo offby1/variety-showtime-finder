@@ -8,14 +8,19 @@
 <body>
 <header>
   <h1>Saved Titles</h1>
-  <label>
-    Sort by
-    <select id="sort-select">
-      <option value="savedAt">Date saved (newest)</option>
-      <option value="title">Title</option>
-      <option value="available">Availability</option>
-    </select>
-  </label>
+  <div class="header-controls">
+    <label>
+      Sort by
+      <select id="sort-select">
+        <option value="savedAt">Date saved (newest)</option>
+        <option value="title">Title</option>
+        <option value="available">Availability</option>
+      </select>
+    </label>
+    <button type="button" id="export-btn">Export backup</button>
+    <button type="button" id="import-btn">Import backup</button>
+    <input type="file" id="import-file" accept="application/json" hidden />
+  </div>
 </header>
 
 <div id="list-message" class="list-message" hidden></div>
