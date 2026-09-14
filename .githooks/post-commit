@@ -1,0 +1,32 @@
+#!/bin/sh
+# Auto-stamps src/version.js with the commit that was just made, as a
+# follow-up commit - see the comment at the top of src/version.js for why
+# this is a separate commit rather than part of the real one.
+#
+# One-time setup to enable this hook (git doesn't do it automatically):
+#   git config core.hooksPath .githooks
+set -eu
+
+msg=$(git log -1 --pretty=%s)
+case "$msg" in
+  "Stamp version.js with commit "*)
+    # This *is* a stamp commit - do nothing, or we'd loop forever.
+    exit 0
+    ;;
+esac
+
+hash=$(git rev-parse --short HEAD)
+now=$(date -Iseconds)
+
+current=$(sed -n 's/^export const GIT_COMMIT = "\(.*\)";/\1/p' src/version.js)
+if [ "$current" = "$hash" ]; then
+  exit 0
+fi
+
+sed -i.bak \
+  -e "s/^export const GIT_COMMIT = \".*\";/export const GIT_COMMIT = \"$hash\";/" \
+  -e "s/^export const STAMPED_AT = \".*\";/export const STAMPED_AT = \"$now\";/" \
+  src/version.js
+rm -f src/version.js.bak
+
+git commit --quiet -m "Stamp version.js with commit $hash" -- src/version.js
