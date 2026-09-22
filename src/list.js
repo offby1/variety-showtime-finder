@@ -16,6 +16,21 @@ const exportHtmlBtn = document.getElementById("export-html-btn");
 const importBtn = document.getElementById("import-btn");
 const importFile = document.getElementById("import-file");
 
+// ISO 8601 with a numeric timezone offset (e.g. 2026-09-22T08:20:26-07:00),
+// for human-facing timestamps - unambiguous across locales/devices, unlike
+// toLocaleString()/toLocaleDateString().
+function formatTimestamp(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const offsetMin = -date.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? "+" : "-";
+  const absOffset = Math.abs(offsetMin);
+  const offset = `${sign}${pad(Math.floor(absOffset / 60))}:${pad(absOffset % 60)}`;
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}${offset}`
+  );
+}
+
 let listMessageTimeout = null;
 function showListMessage(text) {
   clearTimeout(listMessageTimeout);
@@ -220,10 +235,10 @@ function renderRow(item) {
   }
 
   const savedTd = document.createElement("td");
-  savedTd.textContent = new Date(item.savedAt).toLocaleDateString();
+  savedTd.textContent = formatTimestamp(new Date(item.savedAt));
 
   const checkedTd = document.createElement("td");
-  checkedTd.textContent = item.lastCheckedAt ? new Date(item.lastCheckedAt).toLocaleString() : "Never";
+  checkedTd.textContent = item.lastCheckedAt ? formatTimestamp(new Date(item.lastCheckedAt)) : "Never";
 
   const actionsTd = document.createElement("td");
   actionsTd.className = "actions-cell";
@@ -317,8 +332,8 @@ function buildHtmlExport() {
       </td>
       <td>${escapeHtml(streamingText(item))}</td>
       <td>${theatricalHtml}</td>
-      <td>${escapeHtml(new Date(item.savedAt).toLocaleDateString())}</td>
-      <td>${item.lastCheckedAt ? escapeHtml(new Date(item.lastCheckedAt).toLocaleString()) : "Never"}</td>
+      <td>${escapeHtml(formatTimestamp(new Date(item.savedAt)))}</td>
+      <td>${item.lastCheckedAt ? escapeHtml(formatTimestamp(new Date(item.lastCheckedAt))) : "Never"}</td>
     </tr>`;
     })
     .join("");
@@ -343,7 +358,7 @@ a { color: #2a5adf; }
 </head>
 <body>
 <h1>Saved Titles</h1>
-<p class="generated-at">Generated ${escapeHtml(new Date().toLocaleString())}</p>
+<p class="generated-at">Generated ${escapeHtml(formatTimestamp(new Date()))}</p>
 <table>
   <thead>
     <tr>
