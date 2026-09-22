@@ -12,6 +12,7 @@ const emptyState = document.getElementById("empty-state");
 const sortSelect = document.getElementById("sort-select");
 const listMessage = document.getElementById("list-message");
 const exportBtn = document.getElementById("export-btn");
+const exportHtmlBtn = document.getElementById("export-html-btn");
 const importBtn = document.getElementById("import-btn");
 const importFile = document.getElementById("import-file");
 
@@ -55,6 +56,27 @@ function sortedItems() {
       sorted.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
   }
   return sorted;
+}
+
+function streamingText(item) {
+  return item.streaming?.flatrate?.length
+    ? item.streaming.flatrate.map((p) => p.provider_name).join(", ")
+    : "Not yet streaming";
+}
+
+function theatricalStatusText(item) {
+  if (item.mediaType !== "movie") return null;
+  if (!item.theatrical?.found) return null;
+  const t = item.theatrical;
+  return t.isReleaseInFuture === true
+    ? t.releaseDate
+      ? `Opens ${t.releaseDate}`
+      : "Not yet released"
+    : t.isReleaseInFuture === false
+      ? t.releaseDate
+        ? `Released ${t.releaseDate}`
+        : "Released"
+      : "Unknown";
 }
 
 function renderLiveShowtimes(container, result) {
@@ -149,25 +171,14 @@ function renderRow(item) {
   }
 
   const streamingTd = document.createElement("td");
-  streamingTd.textContent = item.streaming?.flatrate?.length
-    ? item.streaming.flatrate.map((p) => p.provider_name).join(", ")
-    : "Not yet streaming";
+  streamingTd.textContent = streamingText(item);
 
   const theatricalTd = document.createElement("td");
   if (item.mediaType !== "movie") {
     theatricalTd.textContent = "—";
   } else if (item.theatrical?.found) {
     const t = item.theatrical;
-    const statusText =
-      t.isReleaseInFuture === true
-        ? t.releaseDate
-          ? `Opens ${t.releaseDate}`
-          : "Not yet released"
-        : t.isReleaseInFuture === false
-          ? t.releaseDate
-            ? `Released ${t.releaseDate}`
-            : "Released"
-          : "Unknown";
+    const statusText = theatricalStatusText(item);
     theatricalTd.appendChild(document.createTextNode(statusText + " "));
     const a = document.createElement("a");
     a.href = t.showtimesUrl;
@@ -254,6 +265,104 @@ function renderRow(item) {
   return tr;
 }
 
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[c]);
+}
+
+// Builds a static, script-free HTML snapshot of the current (sorted) list -
+// no chrome.* APIs available once this is saved as a standalone file, so no
+// Recheck/Remove/live-showtimes buttons, just what's already known. Meant to
+// be manually re-exported and uploaded/shared somewhere (e.g. Google Drive)
+// to check the list from a device that can't run this extension, like an
+// iPhone.
+function buildHtmlExport() {
+  const sorted = sortedItems();
+  const rows = sorted
+    .map((item) => {
+      const poster = item.posterUrl
+        ? `<img src="${escapeHtml(item.posterUrl)}" alt="" />`
+        : "";
+      const titleLine = escapeHtml(item.year ? `${item.title} (${item.year})` : item.title);
+      const typeLabel = item.mediaType === "movie" ? "Movie" : "TV";
+      const sourceLink = item.sourceUrl
+        ? `<a href="${escapeHtml(item.sourceUrl)}">Variety review</a>`
+        : "";
+
+      let theatricalHtml = "—";
+      if (item.mediaType === "movie") {
+        if (item.theatrical?.found) {
+          const statusText = escapeHtml(theatricalStatusText(item));
+          const showtimesLink = item.theatrical.showtimesUrl
+            ? ` <a href="${escapeHtml(item.theatrical.showtimesUrl)}">Showtimes on Fandango</a>`
+            : "";
+          theatricalHtml = statusText + showtimesLink;
+        } else {
+          theatricalHtml = "No Fandango match / not checked yet";
+        }
+      }
+
+      return `
+    <tr>
+      <td>${poster}</td>
+      <td>
+        <div class="title-cell">${titleLine}</div>
+        <div class="type-cell">${typeLabel}</div>
+        ${sourceLink}
+      </td>
+      <td>${escapeHtml(streamingText(item))}</td>
+      <td>${theatricalHtml}</td>
+      <td>${escapeHtml(new Date(item.savedAt).toLocaleDateString())}</td>
+      <td>${item.lastCheckedAt ? escapeHtml(new Date(item.lastCheckedAt).toLocaleString()) : "Never"}</td>
+    </tr>`;
+    })
+    .join("");
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Showtime Finder — Saved List</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 1.5rem; color: #1a1a1a; }
+h1 { font-size: 1.3rem; }
+.generated-at { color: #666; font-size: 0.85rem; margin-top: -0.5rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #eee; vertical-align: top; font-size: 0.9rem; }
+th { font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 0.02em; }
+td img { width: 46px; height: 68px; object-fit: cover; border-radius: 3px; background: #ddd; }
+.title-cell { font-weight: 600; }
+.type-cell { font-size: 0.75rem; color: #666; }
+a { color: #2a5adf; }
+</style>
+</head>
+<body>
+<h1>Saved Titles</h1>
+<p class="generated-at">Generated ${escapeHtml(new Date().toLocaleString())}</p>
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Title</th>
+      <th>Streaming</th>
+      <th>Theatrical</th>
+      <th>Saved</th>
+      <th>Last checked</th>
+    </tr>
+  </thead>
+  <tbody>${rows}
+  </tbody>
+</table>
+</body>
+</html>
+`;
+}
+
 sortSelect.addEventListener("change", render);
 
 exportBtn.addEventListener("click", async () => {
@@ -266,6 +375,18 @@ exportBtn.addEventListener("click", async () => {
   a.click();
   URL.revokeObjectURL(url);
   showListMessage(`Exported ${Object.keys(data).length} entries.`);
+});
+
+exportHtmlBtn.addEventListener("click", () => {
+  const html = buildHtmlExport();
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `variety-showtime-finder-${new Date().toISOString().slice(0, 10)}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showListMessage(`Exported ${items.length} entries as HTML.`);
 });
 
 importBtn.addEventListener("click", () => importFile.click());

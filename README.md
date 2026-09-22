@@ -41,6 +41,13 @@ full design.
   buttons to save your saved list + settings to a JSON file and restore
   them later (e.g. after `chrome.storage.sync` data gets orphaned by an
   extension ID change).
+- **Export HTML** saves a static, read-only snapshot of the currently
+  sorted list as a standalone `.html` file — no extension or JS required
+  to view it, just a browser. Handy for checking your list from a device
+  that can't run this extension at all, like an iPhone (upload it to
+  Google Drive, iCloud, email it to yourself, etc.). It's a point-in-time
+  snapshot, not live — re-export and re-upload after making changes you
+  want reflected there.
 
 ## Updating after code changes
 
