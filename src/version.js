@@ -8,5 +8,5 @@
 // reference its own commit's hash) - it's updated in a small follow-up
 // commit after each real change, so it lags by one (metadata-only) commit
 // at most.
-export const GIT_COMMIT = "07534ef";
-export const STAMPED_AT = "2026-09-14T08:07:59-07:00";
+export const GIT_COMMIT = "79824ae";
+export const STAMPED_AT = "2026-09-22T08:20:42-07:00";
