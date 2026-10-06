@@ -42,8 +42,16 @@ full design.
   them later (e.g. after `chrome.storage.sync` data gets orphaned by an
   extension ID change).
 - **Export HTML** saves a static, read-only snapshot of the currently
-  sorted list as a standalone `.html` file — no extension or JS required
-  to view it, just a browser. Handy for checking your list from a device
+  sorted list as a standalone `.html` file — no extension required to
+  view it, just a browser. The page is laid out for phones: each title is
+  a tall card with a large poster, with the posters embedded in the file
+  so that previewers that block remote images still show them, and you
+  scroll through the cards. A search box at the top filters the cards by
+  title, streaming service, or status, but it needs a viewer that runs
+  scripts: it works in a desktop or mobile browser, and it does not work
+  in the iOS Files app's built-in preview (Quick Look), which turns
+  scripts off. In that preview you still get the cards and posters, but
+  you can only scroll. Handy for checking your list from a device
   that can't run this extension at all, like an iPhone (upload it to
   Google Drive, iCloud, email it to yourself, etc.). It's a point-in-time
   snapshot, not live — re-export and re-upload after making changes you

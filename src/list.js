@@ -290,89 +290,170 @@ function escapeHtml(str) {
   })[c]);
 }
 
-// Builds a static, script-free HTML snapshot of the current (sorted) list -
-// no chrome.* APIs available once this is saved as a standalone file, so no
+// Downloads an item's poster and returns it as a data: URL, so the exported
+// file carries its images with it. Viewers such as Google Drive's or iOS's
+// file previews often refuse to load images from other sites, which showed
+// up as broken-image icons. The stored poster is TMDB's small w200 rendering;
+// TMDB serves any size from the same path, so we ask for a larger one to
+// stay sharp when the poster fills the screen. If the download fails, we fall
+// back to the remote URL so that viewers that do allow it still show a poster.
+async function fetchPosterDataUrl(item) {
+  if (!item.posterUrl) return null;
+  const largeUrl = item.posterUrl.replace("/t/p/w200/", "/t/p/w500/");
+  try {
+    const response = await fetch(largeUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return largeUrl;
+  }
+}
+
+// Builds a standalone HTML snapshot of the current (sorted) list - no
+// chrome.* APIs available once this is saved as a standalone file, so no
 // Recheck/Remove/live-showtimes buttons, just what's already known. Meant to
 // be manually re-exported and uploaded/shared somewhere (e.g. Google Drive)
 // to check the list from a device that can't run this extension, like an
-// iPhone.
-function buildHtmlExport() {
+// iPhone. The layout is phone-first: one tall card per title with a large
+// poster, and a small inline script provides a search box that filters the
+// cards by their text.
+async function buildHtmlExport() {
   const sorted = sortedItems();
-  const rows = sorted
-    .map((item) => {
-      const poster = item.posterUrl
-        ? `<img src="${escapeHtml(item.posterUrl)}" alt="" />`
-        : "";
+  const posterSources = await Promise.all(sorted.map(fetchPosterDataUrl));
+  const cards = sorted
+    .map((item, index) => {
+      const posterSrc = posterSources[index];
+      const poster = posterSrc
+        ? `<img class="poster" src="${escapeHtml(posterSrc)}" alt="" />`
+        : `<div class="poster poster-missing">No poster</div>`;
       const titleLine = escapeHtml(item.year ? `${item.title} (${item.year})` : item.title);
       const typeLabel = item.mediaType === "movie" ? "Movie" : "TV";
       const sourceLink = item.sourceUrl
-        ? `<a href="${escapeHtml(item.sourceUrl)}">Variety review</a>`
+        ? `<a class="btn" href="${escapeHtml(item.sourceUrl)}">Variety review</a>`
         : "";
 
-      let theatricalHtml = "—";
+      let theatricalText = null;
+      let showtimesLink = "";
       if (item.mediaType === "movie") {
         if (item.theatrical?.found) {
-          const statusText = escapeHtml(theatricalStatusText(item));
-          const showtimesLink = item.theatrical.showtimesUrl
-            ? ` <a href="${escapeHtml(item.theatrical.showtimesUrl)}">Showtimes on Fandango</a>`
-            : "";
-          theatricalHtml = statusText + showtimesLink;
+          theatricalText = theatricalStatusText(item);
+          if (item.theatrical.showtimesUrl) {
+            showtimesLink = `<a class="btn" href="${escapeHtml(item.theatrical.showtimesUrl)}">Showtimes on Fandango</a>`;
+          }
         } else {
-          theatricalHtml = "No Fandango match / not checked yet";
+          theatricalText = "No Fandango match / not checked yet";
         }
       }
 
+      const streaming = streamingText(item);
+      const saved = formatTimestamp(new Date(item.savedAt));
+      const checked = item.lastCheckedAt ? formatTimestamp(new Date(item.lastCheckedAt)) : "Never";
+      const searchText = [
+        item.title,
+        item.year,
+        typeLabel,
+        streaming,
+        theatricalText,
+        saved,
+        checked,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
       return `
-    <tr>
-      <td>${poster}</td>
-      <td>
-        <div class="title-cell">${titleLine}</div>
-        <div class="type-cell">${typeLabel}</div>
-        ${sourceLink}
-      </td>
-      <td>${escapeHtml(streamingText(item))}</td>
-      <td>${theatricalHtml}</td>
-      <td>${escapeHtml(formatTimestamp(new Date(item.savedAt)))}</td>
-      <td>${item.lastCheckedAt ? escapeHtml(formatTimestamp(new Date(item.lastCheckedAt))) : "Never"}</td>
-    </tr>`;
+  <article class="card" data-search="${escapeHtml(searchText)}">
+    ${poster}
+    <div class="info">
+      <h2>${titleLine}</h2>
+      <div class="type">${typeLabel}</div>
+      <dl>
+        <dt>Streaming</dt><dd>${escapeHtml(streaming)}</dd>${
+          theatricalText
+            ? `\n        <dt>Theatrical</dt><dd>${escapeHtml(theatricalText)}</dd>`
+            : ""
+        }
+        <dt>Saved</dt><dd>${escapeHtml(saved)}</dd>
+        <dt>Last checked</dt><dd>${escapeHtml(checked)}</dd>
+      </dl>
+      <div class="links">${showtimesLink}${sourceLink}</div>
+    </div>
+  </article>`;
     })
     .join("");
 
   return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Showtime Finder — Saved List</title>
 <style>
-body { font-family: system-ui, sans-serif; margin: 1.5rem; color: #1a1a1a; }
-h1 { font-size: 1.3rem; }
-.generated-at { color: #666; font-size: 0.85rem; margin-top: -0.5rem; }
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #eee; vertical-align: top; font-size: 0.9rem; }
-th { font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 0.02em; }
-td img { width: 46px; height: 68px; object-fit: cover; border-radius: 3px; background: #ddd; }
-.title-cell { font-weight: 600; }
-.type-cell { font-size: 0.75rem; color: #666; }
-a { color: #2a5adf; }
+:root { color-scheme: light dark; --bg: #f4f4f6; --card: #fff; --text: #1a1a1a; --muted: #666; --link: #2a5adf; --line: #e2e2e6; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #111; --card: #1e1e22; --text: #f0f0f0; --muted: #a0a0a8; --link: #7ba3ff; --line: #333; }
+}
+* { box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+header { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 0.75rem 1rem; border-bottom: 1px solid var(--line); }
+h1 { font-size: 1.1rem; margin: 0; }
+.generated-at { color: var(--muted); font-size: 0.75rem; margin: 0.15rem 0 0.5rem; }
+#search { width: 100%; font-size: 1rem; padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); }
+#count { color: var(--muted); font-size: 0.75rem; margin-top: 0.35rem; }
+main { padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+.card { background: var(--card); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; min-height: calc(100svh - 9rem); }
+.card[hidden] { display: none; }
+.poster { width: 100%; height: 55svh; object-fit: contain; background: #000; display: block; }
+.poster-missing { display: flex; align-items: center; justify-content: center; color: #888; }
+.info { padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+h2 { font-size: 1.3rem; margin: 0; }
+.type { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.75rem; font-size: 1rem; }
+dt { color: var(--muted); }
+dd { margin: 0; overflow-wrap: anywhere; }
+.links { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: auto; padding-top: 0.5rem; }
+.btn { color: var(--link); border: 1px solid var(--link); border-radius: 8px; padding: 0.55rem 0.9rem; text-decoration: none; font-size: 0.95rem; }
+#none { text-align: center; color: var(--muted); padding: 2rem; }
 </style>
 </head>
 <body>
-<h1>Saved Titles</h1>
-<p class="generated-at">Generated ${escapeHtml(formatTimestamp(new Date()))}</p>
-<table>
-  <thead>
-    <tr>
-      <th></th>
-      <th>Title</th>
-      <th>Streaming</th>
-      <th>Theatrical</th>
-      <th>Saved</th>
-      <th>Last checked</th>
-    </tr>
-  </thead>
-  <tbody>${rows}
-  </tbody>
-</table>
+<header>
+  <h1>Saved Titles</h1>
+  <p class="generated-at">Generated ${escapeHtml(formatTimestamp(new Date()))}</p>
+  <input id="search" type="search" placeholder="Search titles, streaming services, status…" autocomplete="off" />
+  <div id="count"></div>
+</header>
+<main>${cards}
+  <p id="none" hidden>No titles match your search.</p>
+</main>
+<script>
+(function () {
+  var cards = Array.prototype.slice.call(document.querySelectorAll(".card"));
+  var search = document.getElementById("search");
+  var count = document.getElementById("count");
+  var none = document.getElementById("none");
+  function apply() {
+    var terms = search.value.toLowerCase().split(/\\s+/).filter(Boolean);
+    var shown = 0;
+    cards.forEach(function (card) {
+      var text = card.getAttribute("data-search");
+      var match = terms.every(function (t) { return text.indexOf(t) !== -1; });
+      card.hidden = !match;
+      if (match) shown++;
+    });
+    none.hidden = shown !== 0;
+    count.textContent = shown === cards.length ? cards.length + " titles" : shown + " of " + cards.length + " titles";
+  }
+  search.addEventListener("input", apply);
+  apply();
+})();
+</script>
 </body>
 </html>
 `;
@@ -392,8 +473,15 @@ exportBtn.addEventListener("click", async () => {
   showListMessage(`Exported ${Object.keys(data).length} entries.`);
 });
 
-exportHtmlBtn.addEventListener("click", () => {
-  const html = buildHtmlExport();
+exportHtmlBtn.addEventListener("click", async () => {
+  exportHtmlBtn.disabled = true;
+  showListMessage("Downloading posters for the HTML export…");
+  let html;
+  try {
+    html = await buildHtmlExport();
+  } finally {
+    exportHtmlBtn.disabled = false;
+  }
   const blob = new Blob([html], { type: "text/html" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
