@@ -290,45 +290,24 @@ function escapeHtml(str) {
   })[c]);
 }
 
-// Downloads an item's poster and returns it as a data: URL, so the exported
-// file carries its images with it. Viewers such as Google Drive's or iOS's
-// file previews often refuse to load images from other sites, which showed
-// up as broken-image icons. The stored poster is TMDB's small w200 rendering;
-// TMDB serves any size from the same path, so we ask for a larger one to
-// stay sharp when the poster fills the screen. If the download fails, we fall
-// back to the remote URL so that viewers that do allow it still show a poster.
-async function fetchPosterDataUrl(item) {
-  if (!item.posterUrl) return null;
-  const largeUrl = item.posterUrl.replace("/t/p/w200/", "/t/p/w500/");
-  try {
-    const response = await fetch(largeUrl);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const blob = await response.blob();
-    return await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return largeUrl;
-  }
-}
-
 // Builds a standalone HTML snapshot of the current (sorted) list - no
 // chrome.* APIs available once this is saved as a standalone file, so no
 // Recheck/Remove/live-showtimes buttons, just what's already known. Meant to
-// be manually re-exported and uploaded/shared somewhere (e.g. Google Drive)
-// to check the list from a device that can't run this extension, like an
+// be manually re-exported and uploaded to a web host (e.g. GitHub Pages) to
+// check the list from a device that can't run this extension, like an
 // iPhone. The layout is phone-first: one tall card per title with a large
 // poster, and a small inline script provides a search box that filters the
-// cards by their text.
-async function buildHtmlExport() {
+// cards by their text. The posters are linked from TMDB, not embedded, so
+// the page must be viewed in a browser that is allowed to load them; file
+// previewers such as the iOS Files app block remote images.
+function buildHtmlExport() {
   const sorted = sortedItems();
-  const posterSources = await Promise.all(sorted.map(fetchPosterDataUrl));
   const cards = sorted
-    .map((item, index) => {
-      const posterSrc = posterSources[index];
+    .map((item) => {
+      // The stored poster is TMDB's small w200 rendering; TMDB serves any
+      // size from the same path, so ask for a larger one to stay sharp when
+      // the poster fills the screen.
+      const posterSrc = item.posterUrl ? item.posterUrl.replace("/t/p/w200/", "/t/p/w500/") : null;
       const poster = posterSrc
         ? `<img class="poster" src="${escapeHtml(posterSrc)}" alt="" />`
         : `<div class="poster poster-missing">No poster</div>`;
@@ -473,15 +452,8 @@ exportBtn.addEventListener("click", async () => {
   showListMessage(`Exported ${Object.keys(data).length} entries.`);
 });
 
-exportHtmlBtn.addEventListener("click", async () => {
-  exportHtmlBtn.disabled = true;
-  showListMessage("Downloading posters for the HTML export…");
-  let html;
-  try {
-    html = await buildHtmlExport();
-  } finally {
-    exportHtmlBtn.disabled = false;
-  }
+exportHtmlBtn.addEventListener("click", () => {
+  const html = buildHtmlExport();
   const blob = new Blob([html], { type: "text/html" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

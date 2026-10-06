@@ -44,16 +44,15 @@ full design.
 - **Export HTML** saves a static, read-only snapshot of the currently
   sorted list as a standalone `.html` file — no extension required to
   view it, just a browser. The page is laid out for phones: each title is
-  a tall card with a large poster, with the posters embedded in the file
-  so that previewers that block remote images still show them, and you
-  scroll through the cards. A search box at the top filters the cards by
-  title, streaming service, or status, but it needs a viewer that runs
-  scripts: it works in a desktop or mobile browser, and it does not work
-  in the iOS Files app's built-in preview (Quick Look), which turns
-  scripts off. In that preview you still get the cards and posters, but
-  you can only scroll. Handy for checking your list from a device
-  that can't run this extension at all, like an iPhone (upload it to
-  Google Drive, iCloud, email it to yourself, etc.). It's a point-in-time
+  a tall card with a large poster, and you scroll through the cards. The
+  posters are linked from TMDB, not embedded, so the file stays small. A
+  search box at the top filters the cards by title, streaming service, or
+  status. Both the posters and the search need a real web browser: the iOS
+  Files app's built-in preview (Quick Look) blocks remote images and turns
+  scripts off, so there you see the cards but no posters and no search.
+  Handy for checking your list from a device that can't run this extension
+  at all, like an iPhone: upload the file to a web host such as GitHub
+  Pages (name it `index.html`) and open that address in Safari. It's a point-in-time
   snapshot, not live — re-export and re-upload after making changes you
   want reflected there.
 
